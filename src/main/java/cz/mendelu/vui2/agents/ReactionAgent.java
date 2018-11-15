@@ -23,7 +23,7 @@ public class ReactionAgent extends AbstractAgent {
         this.printInfo();
 
         if (dirty) return this.clean();
-        // if (dock && cleanCounter > 4) return Action.TURN_OFF;
+        if (dock && (this.turnNo > 500 || this.cleanCounter > 9)) return Action.TURN_OFF;
         if (canMoveForward(canMove)) return this.forward();
 
         // Prevent 360° turn in one spot
