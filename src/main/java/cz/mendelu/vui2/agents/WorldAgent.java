@@ -8,6 +8,7 @@ public class WorldAgent extends AbstractAgent {
     int turnNo = 0;
     int forwardStreakLimit = 4;
     Stack<Action> actionStack = new Stack<>();
+    Stack<Action> backtrackingActionStack = new Stack<>();
     int lastTurnInDock = 0;
 
     int cleanCounter = 0;
@@ -34,20 +35,19 @@ public class WorldAgent extends AbstractAgent {
             return this.turnRight();
         }
 
-        if (dock && (this.turnNo > 500)) return Action.TURN_OFF;
-
         // MODE: Battery panic (need to get to the dock ASAP)
-        if ((1000 - this.turnNo - (this.turnNo - this.lastTurnInDock)) < 900) {
-            System.out.println("WARNING BATTERY PANIC MODE ON");
-            /*while (!this.actionStack.empty()) System.out.println(this.actionStack.pop());
-            System.exit(0);*/
+        // TODO: Change 1000 to actual battery level
+        if ((1000 - this.turnNo - (this.turnNo - this.lastTurnInDock)) < 5) {
+            System.out.println("BATTERY PANIC MODE ON");
+            // TODO: Change 1000 to actual battery level
+            if (dock) return Action.TURN_OFF;
             if (this.backtrackingStart) {
                 this.turnAround = true;
                 this.backtrackingStart = false;
+                this.backtrackingActionStack.addAll(this.actionStack);
                 return this.turnRight();
             }
-            System.out.println(this.actionStack.peek());
-            Action whatHaveIDone = this.actionStack.pop();
+            Action whatHaveIDone = this.backtrackingActionStack.pop();
             switch (whatHaveIDone) {
                 case CLEAN: return null;
                 case TURN_LEFT: return this.turnRight();

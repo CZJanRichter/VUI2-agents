@@ -23,6 +23,7 @@ public class ReactionAgent extends AbstractAgent {
         this.printInfo();
 
         if (dirty) return this.clean();
+        // TODO: Change 1000 to actual battery level
         if (dock && (this.turnNo > 500 || this.cleanCounter > 9)) return Action.TURN_OFF;
         if (canMoveForward(canMove)) return this.forward();
 
