@@ -18,7 +18,6 @@ public class WorldAgent extends AbstractAgent {
     int turnsRight = 0;
     int turnsRightStreak = 0;
     int notMovedStreak = 0;
-    Action previousAction = Action.TURN_OFF;
     boolean turnAround = false;
     boolean backtrackingStart = true;
 
@@ -36,10 +35,8 @@ public class WorldAgent extends AbstractAgent {
         }
 
         // MODE: Battery panic (need to get to the dock ASAP)
-        // TODO: Change 1000 to actual battery level
-        if ((1000 - this.turnNo - (this.turnNo - this.lastTurnInDock)) < 5) {
+        if ((this.timeToSimulation - this.turnNo - (this.turnNo - this.lastTurnInDock)) < 5) {
             System.out.println("BATTERY PANIC MODE ON");
-            // TODO: Change 1000 to actual battery level
             if (dock) return Action.TURN_OFF;
             if (this.backtrackingStart) {
                 this.turnAround = true;
@@ -65,8 +62,8 @@ public class WorldAgent extends AbstractAgent {
         if (this.notMovedStreak >= 4 && this.turnsLeftStreak >= 3) return this.turnRight();
 
         // Prevent getting stuck by turning right and then left
-        if (this.previousAction == Action.TURN_LEFT) return this.turnLeft();
-        if (this.previousAction == Action.TURN_RIGHT) return this.turnRight();
+        if (this.actionStack.peek() == Action.TURN_LEFT) return this.turnLeft();
+        if (this.actionStack.peek() == Action.TURN_RIGHT) return this.turnRight();
 
         if ((this.turnNo % 4) == 0) return this.turnLeft();
         return this.turnRight();
