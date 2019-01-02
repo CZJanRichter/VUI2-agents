@@ -80,7 +80,6 @@ public class WorldAgent extends AbstractAgent {
     public Action clean() {
         this.cleanCounter++;
         this.notMovedStreak++;
-        this.previousAction = Action.CLEAN;
         this.actionStack.push(Action.CLEAN);
         return Action.CLEAN;
     }
@@ -88,7 +87,6 @@ public class WorldAgent extends AbstractAgent {
     public Action forward() {
         this.notMovedStreak = 0;
         this.forwardStreak++;
-        this.previousAction = Action.FORWARD;
         this.actionStack.push(Action.FORWARD);
         return Action.FORWARD;
     }
@@ -99,7 +97,6 @@ public class WorldAgent extends AbstractAgent {
         this.turnsLeftStreak++;
         this.notMovedStreak++;
         this.turnsLeft++;
-        this.previousAction = Action.TURN_LEFT;
         this.actionStack.push(Action.TURN_LEFT);
         return Action.TURN_LEFT;
     }
@@ -110,7 +107,6 @@ public class WorldAgent extends AbstractAgent {
         this.turnsRightStreak++;
         this.notMovedStreak++;
         this.turnsRight++;
-        this.previousAction = Action.TURN_RIGHT;
         this.actionStack.push(Action.TURN_RIGHT);
         return Action.TURN_RIGHT;
     }
