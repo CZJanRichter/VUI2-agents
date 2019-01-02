@@ -6,7 +6,7 @@ import java.util.*;
 public class GoalAgent extends AbstractAgent {
     enum AgentState {START, EDGE_CHECK, EXPLORE, GO_TO_DOCK}
     enum AgentDirection {NORTH, SOUTH, WEST, EAST}
-    enum RoomState {UNKNOWN, CLEAN, MESSY, WALL, DOCK}
+    enum RoomState {UNKNOWN, CLEAN, WALL, DOCK}
     class Room {
         public int x;
         public int y;
@@ -20,11 +20,6 @@ public class GoalAgent extends AbstractAgent {
     }
 
     int turnNo = 0;
-    int cleanCounter = 0;
-    int turnsLeft = 0;
-    int turnsLeftStreak = 0;
-    int turnsRight = 0;
-    int turnsRightStreak = 0;
     boolean turnAround = false;
     boolean backtrackingStart = true;
     AgentState state = AgentState.START;
@@ -39,15 +34,17 @@ public class GoalAgent extends AbstractAgent {
     }
 
     @Override
-    public Action doAction(boolean canMove, boolean dirty, boolean dock) {
+    public Action doAction(boolean isWall, boolean dirty, boolean dock) {
         this.turnNo++;
         this.addUnknownRoomsToMemory();
-        //this.printInfo();
-        if (dirty) return this.clean();
+
+        if (dirty) return Action.CLEAN;
         if (!dock) this.currentRoom.state = RoomState.CLEAN;
+        if (isWall) this.getRoomInFront().state = RoomState.WALL;
+        this.printMemory();
         switch(this.state){
             case START:
-                if (this.canMoveForward(canMove)) {
+                if (!isWall) {
                     return this.forward();
                 } else {
                     this.state = AgentState.EDGE_CHECK;
@@ -64,34 +61,12 @@ public class GoalAgent extends AbstractAgent {
         return null;
     }
 
-    // ---- Condition methods ----
-
-    public boolean canMoveForward(boolean isWallInFront) {
-        return !isWallInFront;
-    }
-
-    // ---- Action methods ----
-
-    public Action clean() {
-        this.cleanCounter++;
-        this.currentRoom.state = RoomState.CLEAN;
-        return Action.CLEAN;
-    }
-
     public Action forward() {
-        switch(this.direction) {
-            case EAST: this.currentRoom = this.getRoomFromMemory(this.currentRoom.x+1, this.currentRoom.y); break;
-            case SOUTH: this.currentRoom = this.getRoomFromMemory(this.currentRoom.x, this.currentRoom.y-1); break;
-            case WEST: this.currentRoom = this.getRoomFromMemory(this.currentRoom.x-1, this.currentRoom.y); break;
-            case NORTH: this.currentRoom = this.getRoomFromMemory(this.currentRoom.x, this.currentRoom.y+1); break;
-        }
+        this.currentRoom = this.getRoomInFront();
         return Action.FORWARD;
     }
 
     public Action turnLeft() {
-        this.turnsRightStreak = 0;
-        this.turnsLeftStreak++;
-        this.turnsLeft++;
         switch(this.direction) {
             case EAST: this.direction = AgentDirection.NORTH; break;
             case NORTH: this.direction = AgentDirection.WEST; break;
@@ -102,9 +77,6 @@ public class GoalAgent extends AbstractAgent {
     }
 
     public Action turnRight() {
-        this.turnsLeftStreak = 0;
-        this.turnsRightStreak++;
-        this.turnsRight++;
         switch(this.direction) {
             case EAST: this.direction = AgentDirection.SOUTH; break;
             case SOUTH: this.direction = AgentDirection.WEST; break;
@@ -129,7 +101,17 @@ public class GoalAgent extends AbstractAgent {
         for (Room r : this.memory) {
             if (r.x == x && r.y == y) return r;
         }
-        return null; // shouldn't ever happen, use isRoomInMemory() to check before using get
+        return null; // shouldn't ever happen
+    }
+
+    public Room getRoomInFront() {
+        switch(this.direction) {
+            case EAST: return this.getRoomFromMemory(this.currentRoom.x+1, this.currentRoom.y);
+            case SOUTH: return this.getRoomFromMemory(this.currentRoom.x, this.currentRoom.y-1);
+            case WEST: return this.getRoomFromMemory(this.currentRoom.x-1, this.currentRoom.y);
+            case NORTH: return this.getRoomFromMemory(this.currentRoom.x, this.currentRoom.y+1);
+        }
+        return null;
     }
 
     public boolean isRoomInMemory(int x, int y) {
@@ -139,13 +121,9 @@ public class GoalAgent extends AbstractAgent {
         return false;
     }
 
-    public void printInfo() {
-        System.out.println("--- Turn number " + Integer.toString(this.turnNo) + "---");
-        System.out.println("* Cleaned garbage: " + Integer.toString(this.cleanCounter));
-        System.out.println("* Total turns left: " + Integer.toString(this.turnsLeft));
-        System.out.println("* Turn left streak: " + Integer.toString(this.turnsLeftStreak));
-        System.out.println("* Total turns right: " + Integer.toString(this.turnsRight));
-        System.out.println("* Turn right streak: " + Integer.toString(this.turnsRightStreak));
-        System.out.println("-----------------------------------------------");
+    public void printMemory() {
+        System.out.println("---Memory dump---");
+        System.out.println("Current room: (" + this.currentRoom.x + ";" + currentRoom.y + ") " + currentRoom.state);
+        for (Room r : this.memory) System.out.println("(" + r.x + ";" + r.y + ") " + r.state);
     }
 }
