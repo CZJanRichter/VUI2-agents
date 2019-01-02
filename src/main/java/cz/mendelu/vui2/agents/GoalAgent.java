@@ -4,6 +4,8 @@ import cz.mendelu.vui2.agents.greenfoot.AbstractAgent;
 import java.util.*;
 
 public class GoalAgent extends AbstractAgent {
+    private char[][] roomSchema;
+
     enum AgentState {START, EDGE_CHECK, EXPLORE, GO_TO_DOCK}
     enum AgentDirection {NORTH, SOUTH, WEST, EAST}
     enum RoomState {UNKNOWN, CLEAN, WALL, DOCK}
@@ -20,12 +22,12 @@ public class GoalAgent extends AbstractAgent {
     }
 
     int turnNo = 0;
-    boolean turnAround = false;
-    boolean backtrackingStart = true;
     AgentState state = AgentState.START;
     AgentDirection direction = AgentDirection.NORTH;
     Room currentRoom = new Room(0,0, RoomState.DOCK);
     Room edgeCheckHook;
+    int edgeCheckTurns = 0;
+    Action previousMovement;
 
     ArrayList<Room> memory = new ArrayList<Room>();
 
@@ -52,9 +54,22 @@ public class GoalAgent extends AbstractAgent {
                     return this.turnRight();
                 }
             case EDGE_CHECK:
-                break;
+                this.edgeCheckTurns++;
+                if (this.currentRoom == this.edgeCheckHook && this.edgeCheckTurns > 4) {
+                    this.state = AgentState.EXPLORE;
+                    return this.turnRight();
+                }
+                switch(this.previousMovement) {
+                    case FORWARD:
+                        return this.turnLeft();
+                    case TURN_LEFT: case TURN_RIGHT:
+                        if (isWall) return this.turnRight();
+                        return this.forward();
+                }
             case EXPLORE:
-                break;
+                System.out.println("Time to explore!");
+                this.printRoomMemorySchema();
+                return Action.TURN_OFF;
             case GO_TO_DOCK:
                 break;
         }
@@ -63,6 +78,7 @@ public class GoalAgent extends AbstractAgent {
 
     public Action forward() {
         this.currentRoom = this.getRoomInFront();
+        this.previousMovement = Action.FORWARD;
         return Action.FORWARD;
     }
 
@@ -73,6 +89,7 @@ public class GoalAgent extends AbstractAgent {
             case WEST: this.direction = AgentDirection.SOUTH; break;
             case SOUTH: this.direction = AgentDirection.EAST; break;
         }
+        this.previousMovement = Action.TURN_LEFT;
         return Action.TURN_LEFT;
     }
 
@@ -83,6 +100,7 @@ public class GoalAgent extends AbstractAgent {
             case WEST: this.direction = AgentDirection.NORTH; break;
             case NORTH: this.direction = AgentDirection.EAST; break;
         }
+        this.previousMovement = Action.TURN_RIGHT;
         return Action.TURN_RIGHT;
     }
 
@@ -125,5 +143,34 @@ public class GoalAgent extends AbstractAgent {
         System.out.println("---Memory dump---");
         System.out.println("Current room: (" + this.currentRoom.x + ";" + currentRoom.y + ") " + currentRoom.state);
         for (Room r : this.memory) System.out.println("(" + r.x + ";" + r.y + ") " + r.state);
+    }
+
+    public void printRoomMemorySchema() {
+        int xmax = 0, xmin = 0, ymax = 0, ymin = 0;
+        for (Room r : this.memory) {
+            if (xmax < r.x) xmax = r.x;
+            if (xmin > r.x) xmin = r.x;
+            if (ymax < r.y) ymax = r.y;
+            if (ymin > r.y) ymin = r.y;
+        }
+        char[][] roomSchema = new char[xmax-xmin+1][ymax-ymin+1];
+        for (int y = 0; y < roomSchema.length; y++) {
+            for (int x = 0; x < roomSchema[y].length; x++) {
+                roomSchema[x][y] = '?';
+            }
+        }
+        for (Room r : this.memory) {
+            switch(r.state){
+                case CLEAN: roomSchema[r.x-xmin][r.y-ymin] = '0'; break;
+                case DOCK: roomSchema[r.x-xmin][r.y-ymin] = 'D'; break;
+                case WALL: roomSchema[r.x-xmin][r.y-ymin] = 'W'; break;
+            }
+        }
+        for (int y = roomSchema.length-1; y >= 0; y--) {
+            for (int x = 0; x < roomSchema[y].length; x++) {
+                System.out.print(roomSchema[x][y]);
+            }
+            System.out.println();
+        }
     }
 }
