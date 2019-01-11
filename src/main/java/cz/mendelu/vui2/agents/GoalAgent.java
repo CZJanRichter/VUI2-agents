@@ -4,8 +4,6 @@ import cz.mendelu.vui2.agents.greenfoot.AbstractAgent;
 import java.util.*;
 
 public class GoalAgent extends AbstractAgent {
-    private char[][] roomSchema;
-
     enum AgentState {START, EDGE_CHECK, EXPLORE, GO_TO_DOCK}
     enum AgentDirection {NORTH, SOUTH, WEST, EAST}
     enum RoomState {UNKNOWN, CLEAN, WALL, DOCK}
@@ -28,8 +26,9 @@ public class GoalAgent extends AbstractAgent {
     Room edgeCheckHook;
     int edgeCheckTurns = 0;
     Action previousMovement;
-    boolean exploreDefaultGotToEdge = false;
+    boolean gotToEdge = false;
     int noNewExploreStreak = 0;
+    int goToDockTurns = 0;
 
     ArrayList<Room> memory = new ArrayList<Room>();
 
@@ -44,7 +43,6 @@ public class GoalAgent extends AbstractAgent {
         if (dirty) return Action.CLEAN;
         if (!dock) this.currentRoom.state = RoomState.CLEAN;
         if (isWall) this.getRoomInFront().state = RoomState.WALL;
-        this.printMemory();
         switch(this.state){
             case START:
                 if (!isWall) {
@@ -60,17 +58,10 @@ public class GoalAgent extends AbstractAgent {
                     this.state = AgentState.EXPLORE;
                     return this.turnRight();
                 }
-                switch(this.previousMovement) {
-                    case FORWARD:
-                        return this.turnLeft();
-                    case TURN_LEFT: case TURN_RIGHT:
-                        if (isWall) return this.turnRight();
-                        return this.forward();
-                }
+                return getActionToMoveAroundTheEdge(isWall);
             case EXPLORE:
-                this.printRoomMemorySchema();
                 if (getRoomInFront().state == RoomState.UNKNOWN && !isWall) {
-                    this.exploreDefaultGotToEdge = false;
+                    this.gotToEdge = false;
                     this.noNewExploreStreak = 0;
                     return forward();
                 }
@@ -89,25 +80,34 @@ public class GoalAgent extends AbstractAgent {
                         if (getRoomFromMemory(this.currentRoom.x, this.currentRoom.y-1).state == RoomState.UNKNOWN) return turnLeft();
                     default:
                         this.noNewExploreStreak++;
-                        if (this.noNewExploreStreak >= 200 || (this.timeToSimulation - this.turnNo) < 200) {
+                        if (this.noNewExploreStreak >= 500 || (this.timeToSimulation - this.turnNo) < 200) {
+                            this.gotToEdge = false;
                             this.state = AgentState.GO_TO_DOCK;
                         }
-                        if (!this.exploreDefaultGotToEdge && !isWall) return forward();
+                        if (!this.gotToEdge && !isWall) return forward();
                         else if (isWall) {
-                            this.exploreDefaultGotToEdge = true;
+                            this.gotToEdge = true;
                             return turnRight();
                         }
-                        switch(this.previousMovement) {
-                            case FORWARD:
-                                return turnLeft();
-                            case TURN_LEFT: case TURN_RIGHT:
-                                if (isWall) return turnRight();
-                                return forward();
-                        }
+                        return getActionToMoveAroundTheEdge(isWall);
                 }
             case GO_TO_DOCK:
-                System.out.println("Time to go to dock now!");
-                return Action.TURN_OFF;
+                this.goToDockTurns++;
+                if (dock) return turnOff();
+                if (getDirectPathToDock(this.currentRoom) != null) {
+                    if (this.direction != getDirectPathToDock(this.currentRoom)) return turnRight();
+                    return forward();
+                }
+                if (!this.gotToEdge && !isWall) return forward();
+                else if (isWall) {
+                    this.gotToEdge = true;
+                    return this.turnRight();
+                }
+                if (this.goToDockTurns % 140 > 120) {
+                    if (!isWall) return forward();
+                    return turnLeft();
+                }
+                return getActionToMoveAroundTheEdge(isWall);
         }
         return null;
     }
@@ -140,6 +140,14 @@ public class GoalAgent extends AbstractAgent {
         return Action.TURN_RIGHT;
     }
 
+    public Action turnOff(){
+        System.out.println("The agent is turning off.");
+        printMemory();
+        printRoomMemorySchema();
+        return Action.TURN_OFF;
+    }
+
+
     public void addUnknownRoomsToMemory() {
         if (!isRoomInMemory(this.currentRoom.x-1, this.currentRoom.y))
             this.memory.add(new Room(this.currentRoom.x-1, this.currentRoom.y, RoomState.UNKNOWN)); // west
@@ -151,11 +159,58 @@ public class GoalAgent extends AbstractAgent {
             this.memory.add(new Room(this.currentRoom.x, this.currentRoom.y-1, RoomState.UNKNOWN)); // south
     }
 
+    public Action getActionToMoveAroundTheEdge(boolean isWall) {
+        switch(this.previousMovement) {
+            case FORWARD:
+                return turnLeft();
+            case TURN_LEFT: case TURN_RIGHT:
+                if (isWall) return turnRight();
+                return forward();
+        }
+        return null;
+    }
+
+    public AgentDirection getDirectPathToDock(Room from) {
+        boolean foundWall = false;
+        Room savedRoom = from;
+        do { // NORTH
+            if (!isRoomInMemory(savedRoom.x, savedRoom.y+1)) break;
+            savedRoom = getRoomFromMemory(savedRoom.x, savedRoom.y+1);
+            if (savedRoom.state == RoomState.WALL) foundWall = true;
+            if (savedRoom.state == RoomState.DOCK) return AgentDirection.NORTH;
+        } while (!foundWall);
+        foundWall = false;
+        savedRoom = from;
+        do { // EAST
+            if (!isRoomInMemory(savedRoom.x+1, savedRoom.y)) break;
+            savedRoom = getRoomFromMemory(savedRoom.x+1, savedRoom.y);
+            if (savedRoom.state == RoomState.WALL) foundWall = true;
+            if (savedRoom.state == RoomState.DOCK) return AgentDirection.EAST;
+        } while (!foundWall);
+        foundWall = false;
+        savedRoom = from;
+        do { // SOUTH
+            if (!isRoomInMemory(savedRoom.x, savedRoom.y-1)) break;
+            savedRoom = getRoomFromMemory(savedRoom.x, savedRoom.y-1);
+            if (savedRoom.state == RoomState.WALL) foundWall = true;
+            if (savedRoom.state == RoomState.DOCK) return AgentDirection.SOUTH;
+        } while (!foundWall);
+        foundWall = false;
+        savedRoom = from;
+        do { // WEST
+            if (!isRoomInMemory(savedRoom.x-1, savedRoom.y)) break;
+            savedRoom = getRoomFromMemory(savedRoom.x-1, savedRoom.y);
+            if (savedRoom.state == RoomState.WALL) foundWall = true;
+            if (savedRoom.state == RoomState.DOCK) return AgentDirection.WEST;
+        } while (!foundWall);
+        return null;
+    }
+
     public Room getRoomFromMemory(int x, int y) {
         for (Room r : this.memory) {
             if (r.x == x && r.y == y) return r;
         }
-        return null; // shouldn't ever happen
+        return null;
     }
 
     public Room getRoomInFront() {
